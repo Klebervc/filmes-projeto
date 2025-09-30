@@ -7,7 +7,7 @@ path_db = 'db/filmes.db'
 
 os.makedirs('db', exist_ok=True)
 
-engine = create_engine(f'sqlite:///{path_db}') #gerenciador de conexão com o banco de dados (objeto que sabe como se conectar ao banco de dados).
+engine = create_engine(f'sqlite:///{path_db}')
 
 df = pd.read_csv(path_csv)
 

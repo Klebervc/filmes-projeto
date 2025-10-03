@@ -1,10 +1,14 @@
 import pandas as pd
 import pytest
-import os
 from sqlalchemy import text
 from db.db_ingest import processar_filmes
 
-def test_deve_criar_diretorio_db(tmp_path):
+csv_filename = 'fimes.csv'
+db_filename = 'filmes.db'
+tabela_filmes = 'filmes'
+
+@pytest.fixture
+def definir_df_path_carregar_csv(tmp_path):
     
     df = pd.DataFrame({
         'Titulo': ['filme_1', 'filme_2'],
@@ -12,29 +16,43 @@ def test_deve_criar_diretorio_db(tmp_path):
         'Diretor': ['diretor_1', 'diretor_2']
     })
     
-    path_csv = tmp_path / 'filmes.csv'
-    path_db = tmp_path / 'subdir' / 'filmes.db'
+    path_csv = tmp_path / csv_filename
+    path_db = tmp_path / db_filename
     
     df.to_csv(path_csv, index=False)
     
+    return df, path_csv, path_db
+
+@pytest.fixture
+def testar_prints(capsys, definir_df_path_carregar_csv):
+    
+    _, path_csv, path_db = definir_df_path_carregar_csv
+    
+    processar_filmes(str(path_csv), str(path_db))
+    
+    captured = capsys.readouterr()
+    
+    return captured
+
+def test_deve_garantir_diretorio_db_não_existe_quando_não_existir(tmp_path):
+    
+    path_db = tmp_path / 'subdir' / db_filename
+    
     assert not path_db.parent.exists()
+
+def test_deve_criar_diretorio_db_quando_processar_filmes(tmp_path, definir_df_path_carregar_csv):
+    
+    _, path_csv, _ = definir_df_path_carregar_csv
+    
+    path_db = tmp_path / 'subdir' / db_filename
     
     processar_filmes(str(path_csv), str(path_db))
     
     assert path_db.parent.exists()
 
-def test_deve_testar_engine_tabela(tmp_path):
+def test_deve_criar_tabela_filmes_quando_criar_conexao_engine(definir_df_path_carregar_csv):
     
-    df = pd.DataFrame({
-        'Titulo': ['filme_1', 'filme_2'],
-        'Ano': [2023, 2024],
-        'Diretor': ['diretor_1', 'diretor_2']
-    })
-    
-    path_csv = tmp_path / 'filmes.csv'
-    path_db = tmp_path / 'filmes.db'
-    
-    df.to_csv(path_csv, index=False)
+    _, path_csv, path_db = definir_df_path_carregar_csv
     
     engine = processar_filmes(str(path_csv), str(path_db))
     
@@ -42,45 +60,39 @@ def test_deve_testar_engine_tabela(tmp_path):
         resultado = cnn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='filmes';"))
         tabela = [row[0] for row in resultado]
         
-    assert "filmes" in tabela
+    assert tabela_filmes in tabela
 
-def test_deve_testar_dataframe_database(tmp_path):
+def test_deve_comparar_dataframe_e_database_quando_criar_conexao_engine(definir_df_path_carregar_csv):
     
-    df = pd.DataFrame({
-        'Titulo': ['filme_1', 'filme_2'],
-        'Ano': [2023, 2024],
-        'Diretor': ['diretor_1', 'diretor_2']
-    })
-    
-    path_csv = tmp_path / 'filmes.csv'
-    path_db = tmp_path / 'filmes.db'
-    
-    df.to_csv(path_csv, index=False)
+    df, path_csv, path_db = definir_df_path_carregar_csv
     
     engine = processar_filmes(str(path_csv), str(path_db))
     
     with engine.connect() as cnn:
-        df_db = pd.read_sql("SELECT * FROM filmes", cnn)
+        df_db = pd.read_sql(f"SELECT * FROM {tabela_filmes}", cnn)
         
     pd.testing.assert_frame_equal(df, df_db)
 
-def test_deve_testar_colunas_print(tmp_path, capsys):
+def test_deve_dar_erro_quando_nao_capturar_print_informações_tabela(testar_prints):
     
-    df = pd.DataFrame({
-        'Titulo': ['filme_1', 'filme_2'],
-        'Ano': [2023, 2024],
-        'Diretor': ['diretor_1', 'diretor_2']
-    })
+    captured = testar_prints
     
-    path_csv = tmp_path / 'filmes.csv'
-    path_db = tmp_path / 'filmes.db'
-    
-    df.to_csv(path_csv, index=False)
-    
-    processar_filmes(str(path_csv), str(path_db))
-    
-    captured = capsys.readouterr()
     assert "Informações da tabela 'filmes':" in captured.out
+
+def test_deve_dar_erro_quando_nao_capturar_print_titulo(testar_prints):
+    
+    captured = testar_prints
+    
     assert "Nome: Titulo" in captured.out
+
+def test_deve_dar_erro_quando_nao_capturar_print_ano(testar_prints):
+    
+    captured = testar_prints
+    
     assert "Nome: Ano" in captured.out
+
+def test_deve_dar_erro_quando_nao_capturar_print_diretor(testar_prints):
+    
+    captured = testar_prints
+    
     assert "Nome: Diretor" in captured.out

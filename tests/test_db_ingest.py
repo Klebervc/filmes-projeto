@@ -1,39 +1,86 @@
 import pandas as pd
-from sqlalchemy import create_engine, text
+import pytest
+import os
+from sqlalchemy import text
+from db.db_ingest import processar_filmes
 
-path_csv = 'data/processed/filmes_limpos.csv'
-path_db = 'sqlite:///db/filmes.db'
+def test_deve_criar_diretorio_db(tmp_path):
+    
+    df = pd.DataFrame({
+        'Titulo': ['filme_1', 'filme_2'],
+        'Ano': [2023, 2024],
+        'Diretor': ['diretor_1', 'diretor_2']
+    })
+    
+    path_csv = tmp_path / 'filmes.csv'
+    path_db = tmp_path / 'subdir' / 'filmes.db'
+    
+    df.to_csv(path_csv, index=False)
+    
+    assert not path_db.parent.exists()
+    
+    processar_filmes(str(path_csv), str(path_db))
+    
+    assert path_db.parent.exists()
 
-engine = create_engine(path_db)
-
-df_test = pd.read_csv(path_csv)
-
-def test_num_registros():
-    num_registros_csv = len(df_test)
-
+def test_deve_testar_engine_tabela(tmp_path):
+    
+    df = pd.DataFrame({
+        'Titulo': ['filme_1', 'filme_2'],
+        'Ano': [2023, 2024],
+        'Diretor': ['diretor_1', 'diretor_2']
+    })
+    
+    path_csv = tmp_path / 'filmes.csv'
+    path_db = tmp_path / 'filmes.db'
+    
+    df.to_csv(path_csv, index=False)
+    
+    engine = processar_filmes(str(path_csv), str(path_db))
+    
     with engine.connect() as cnn:
-        result = cnn.execute(text("SELECT COUNT(*) FROM filmes"))
-        num_registros_db = result.scalar()
-
-    assert num_registros_csv == num_registros_db, f'Quantidade em CSV {num_registros_csv} é diferente da quantidade no banco {num_registros_db}'
-
-def test_column_nao_vazia():
-    
-    df_db = pd.read_sql("SELECT * FROM filmes", con=engine)
-    
-    colunas_criticas = ['title', 'overview', 'budget', 'genres', 'revenue', 'runtime', 'release_date']
-    
-    for coluna in colunas_criticas:
-        total_nan_col = df_db[coluna].isna().sum()
-        total_row_df = len(df_db)
-        assert total_nan_col < total_row_df, f'A coluna {coluna} está vazia'
-
-def test_column_numericas():
-    
-    df_db = pd.read_sql("SELECT * FROM filmes", con=engine)
-    
-    colunas_numericas = ['id', 'budget', 'revenue', 'runtime', 'popularity', 'vote_average', 'vote_count']
-    
-    for coluna in colunas_numericas:
+        resultado = cnn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='filmes';"))
+        tabela = [row[0] for row in resultado]
         
-        assert df_test[coluna].dtype == df_db[coluna].dtype, f'A coluna {coluna} está com tipagem incorreta'
+    assert "filmes" in tabela
+
+def test_deve_testar_dataframe_database(tmp_path):
+    
+    df = pd.DataFrame({
+        'Titulo': ['filme_1', 'filme_2'],
+        'Ano': [2023, 2024],
+        'Diretor': ['diretor_1', 'diretor_2']
+    })
+    
+    path_csv = tmp_path / 'filmes.csv'
+    path_db = tmp_path / 'filmes.db'
+    
+    df.to_csv(path_csv, index=False)
+    
+    engine = processar_filmes(str(path_csv), str(path_db))
+    
+    with engine.connect() as cnn:
+        df_db = pd.read_sql("SELECT * FROM filmes", cnn)
+        
+    pd.testing.assert_frame_equal(df, df_db)
+
+def test_deve_testar_colunas_print(tmp_path, capsys):
+    
+    df = pd.DataFrame({
+        'Titulo': ['filme_1', 'filme_2'],
+        'Ano': [2023, 2024],
+        'Diretor': ['diretor_1', 'diretor_2']
+    })
+    
+    path_csv = tmp_path / 'filmes.csv'
+    path_db = tmp_path / 'filmes.db'
+    
+    df.to_csv(path_csv, index=False)
+    
+    processar_filmes(str(path_csv), str(path_db))
+    
+    captured = capsys.readouterr()
+    assert "Informações da tabela 'filmes':" in captured.out
+    assert "Nome: Titulo" in captured.out
+    assert "Nome: Ano" in captured.out
+    assert "Nome: Diretor" in captured.out

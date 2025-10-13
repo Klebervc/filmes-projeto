@@ -54,7 +54,7 @@ def processar_filmes(path_csv, path_db):
             return erros
         
     if erros:
-        print('Erros encontrados na validação')
+        print('Foram encontrados erros nos seguintes dados: ')
         for erro in erros:
             print(erro)
     else:

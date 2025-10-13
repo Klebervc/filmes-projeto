@@ -89,8 +89,6 @@ def test_deve_dar_erro_quando_nao_salvar_tabela_1(tmp_path):
     with patch('pandas.DataFrame.to_sql', side_effect=ValueError('Valor inválido')):
         resultado = processar_filmes(str(path_csv), str(path_db))
     
-    print('resultado:', resultado)
-    
     assert len(resultado['erros']) == 1
 
 def test_deve_dar_erro_quando_nao_salvar_tabela_2(tmp_path):

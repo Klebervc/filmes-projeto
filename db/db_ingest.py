@@ -32,14 +32,33 @@ def processar_filmes(path_csv, path_db):
         print(f'Erro inesperado ao carregar CSV: {variant_error}')
         return
     
-    try:
-        df.to_sql('filmes', con=engine, if_exists='replace', index=False)
-    except ValueError as value_error:
-        print(f'Erro ao salvar tabela (valor inválido): {value_error}')
-        return
-    except SQLAlchemyError as db_tabela_error:
-        print(f'Erro ao salvar tabela no banco de dados: {db_tabela_error}')
-        return
+    erros = []
+    
+    for idx, row in df.iterrows():
+        
+        try:
+            row_df = row.to_frame().T
+            row_df.to_sql('filmes', con=engine, if_exists='append', index=False)
+        
+        except ValueError as value_error:
+            erro_dict = {
+                'index': idx,
+                'linha': row.to_dict(),
+                'erro': str(value_error)
+            }
+            
+            erros.append(erro_dict)
+            continue
+        except SQLAlchemyError as db_tabela_error:
+            erros.append(db_tabela_error)
+            return erros
+        
+    if erros:
+        print('Erros encontrados na validação')
+        for erro in erros:
+            print(erro)
+    else:
+        df.to_sql('filmes',con=engine, if_exists='replace', index=False)
     
     try:
         with engine.connect() as cnn:
@@ -52,5 +71,5 @@ def processar_filmes(path_csv, path_db):
         print(f'Erro ao realizar consulta SQL: {consulta_SQL}')
         return
     
-    return engine
+    return {'erros': erros, 'engine': engine}
 

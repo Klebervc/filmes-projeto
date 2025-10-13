@@ -3,7 +3,7 @@ import pytest
 from sqlalchemy import text
 from db.db_ingest import processar_filmes
 
-csv_filename = 'fimes.csv'
+csv_filename = 'filmes.csv'
 db_filename = 'filmes.db'
 tabela_filmes = 'filmes'
 
@@ -54,7 +54,7 @@ def test_deve_criar_tabela_filmes_quando_criar_conexao_engine(definir_df_path_ca
     
     _, path_csv, path_db = definir_df_path_carregar_csv
     
-    engine = processar_filmes(str(path_csv), str(path_db))
+    engine = processar_filmes(str(path_csv), str(path_db)).get('engine')
     
     with engine.connect() as cnn:
         resultado = cnn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='filmes';"))
@@ -66,7 +66,7 @@ def test_deve_comparar_dataframe_e_database_quando_criar_conexao_engine(definir_
     
     df, path_csv, path_db = definir_df_path_carregar_csv
     
-    engine = processar_filmes(str(path_csv), str(path_db))
+    engine = processar_filmes(str(path_csv), str(path_db)).get('engine')
     
     with engine.connect() as cnn:
         df_db = pd.read_sql(f"SELECT * FROM {tabela_filmes}", cnn)

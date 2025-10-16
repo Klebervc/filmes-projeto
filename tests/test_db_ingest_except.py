@@ -121,7 +121,7 @@ def test_deve_dar_erro_quando_nao_salvar_tabela_3(tmp_path):
     
     assert resultado['erros'][0]['linha']['Titulo'] == 'Inception'
 
-def test_deve_da_erro_quando_nao_salvar_tabela_banco(tmp_path, capsys):
+def test_deve_da_erro_quando_nao_salvar_tabela_banco(tmp_path):
     
     path_csv = tmp_path / csv_filename
     path_db = tmp_path / db_filename
